@@ -1,0 +1,3 @@
+Beagle      HoundMedium
+Basset HoundHoundLarge 
+Chihuahua        Small 

@@ -1,0 +1,46 @@
+<project name="mdelaurentis.com.anytable" 
+         default="compile"
+         xmlns:mvn="urn:maven-artifact-ant">
+
+  <property name="build.dir" location="classes"/>
+  <property name="clj.src.dir" location="src/clj"/>
+  <property name="lib.dir" location="lib"/>
+
+  <path id="classpath">
+    <pathelement location="${clj.src.dir}"/>
+    <pathelement location="${build.dir}"/>
+    <pathelement location="/Users/mdelaurentis/src/clojure/clojure.jar"/>
+    <pathelement location="/Users/mdelaurentis/src/clojure-contrib/clojure-contrib.jar"/>
+<!--    <fileset dir="${lib.dir}" includes="**/*.jar"/>  -->
+  </path>
+
+  <target name="init">
+    <tstamp/>
+    <mkdir dir="${build.dir}"/>
+  </target>
+
+  <target name="compile"
+          depends="init"
+          description="Compile sources.">
+    <echo message="Classpath is ${classpath}"/>
+    <java classname="clojure.lang.Compile"
+          classpathref="classpath">
+      <sysproperty key="clojure.compile.path" value="${build.dir}"/>
+      <arg value="com.mdelaurentis.anytable"/>
+    </java>
+  </target>
+
+  <property name="classpath.property"
+            refid="classpath"/>
+  <target name="repl" description="Start a repl">
+    <echo message="java -cp ${classpath.property}:/Users/mdelaurentis/src/swank-clojure clojure.main &quot;$@&quot;"
+          file="repl"/>
+    <chmod file="repl" perm="a+x"/>
+  </target>
+  
+  <target name="clean" description="Remove generated files">
+    <delete dir="${build.dir}"/>
+    <delete file="repl"/>
+  </target>
+
+</project>
