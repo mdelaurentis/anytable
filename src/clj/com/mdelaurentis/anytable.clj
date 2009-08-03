@@ -2,20 +2,63 @@
   (:require [clojure.contrib.duck-streams :as streams])
   (:gen-class com.mdelaurentis.anytable.TableReader))
 
-(declare open open? close headers row-seq record-seq)
+(declare open? close headers row-seq record-seq)
 
 (derive ::tab ::flat-file)
 (derive ::fixed-width ::flat-file)
 
-(defmulti open :type)
-(defmulti make-row (fn [spec line]
-                     (:type spec)))
+(defmulti open-reader :type)
+
+(defmulti open-writer 
+    "Opens the specified table for writing."
+    :type)
+
+(defmulti close
+  "Close the reader and writer on the given table."
+  :type)
+
+(defmulti write-row
+  "Writes a single row (vector of objects) to the given table writer."
+  (fn [wtr row]
+    (:type wtr)))
+
+(defmulti row-seq
+  "Returns a lazy sequence of rows (vectors of objects) from the given
+  table reader."
+  :type)
+
 (def headers :headers)
-(defmulti row-seq :type)
 
 (defn record-seq [table-spec]
   (let [hs (headers table-spec)]
     (map (partial zipmap hs) (row-seq table-spec))))
+
+(defn write-record [t record]
+  (write-row t (map record (headers t))))
+
+(defmacro with-reader [[name spec] & body]
+  `(let [~name (open-reader ~spec)]
+     (try ~@body
+          (finally 
+           (close ~name)))))
+
+;; Flat text files
+
+(defmulti parse-row (fn [spec line]
+                     (:type spec)))
+(defmulti format-row (fn [spec row]
+                       (:type spec)))
+
+(defmethod row-seq ::flat-file [t]
+  (map (partial parse-row t) (line-seq (:reader t))))
+
+(defmethod write-row ::flat-file [t row]
+  (binding [*out* (:writer t)]
+    (println (format-row t row))))
+
+(defmethod close ::flat-file [t]
+  (when-let [r (:reader t)] (.close r))
+  (when-let [w (:writer t)] (.close w)))
 
 ;; Delimited flat files
 
@@ -24,23 +67,23 @@
    :location loc
    :delimiter "\t"})
 
-(defmethod make-row ::tab [spec line]
+(defmethod parse-row ::tab [spec line]
   (.split line (:delimiter spec)))
 
-(defmethod open ::tab [table-spec]
+(defmethod format-row ::tab [spec row]
+  (apply str (interpose (:delimiter spec row))))
+
+(defmethod open-reader ::tab [table-spec]
   (let [rdr     (streams/reader (:location table-spec))
-        headers (make-row table-spec (first (line-seq rdr)))]
+        headers (parse-row table-spec (first (line-seq rdr)))]
     (assoc table-spec
       :headers headers
       :reader  rdr)))
 
-(defmulti close :type)
-
-(defmethod close ::tab [t]
-  (.close (:reader t)))
-
-(defmethod close ::fixed-width [t]
-  (.close (:reader t)))
+(defmethod open-writer ::tab [table-spec]
+  (let [wtr (streams/writer (:location table-spec))]
+    (binding [*out* wtr]
+      (println (parse-row headers)))))
 
 ;; Fixed-width flat files
 
@@ -57,20 +100,11 @@
      :widths   widths
      :bounds   bounds}))
 
-(defmethod open ::fixed-width [spec]
+(defmethod open-reader ::fixed-width [spec]
   (let [rdr (streams/reader (:location spec))]
     (assoc spec
       :reader rdr)))
 
-(defmethod make-row ::fixed-width [spec line]
+(defmethod parse-row ::fixed-width [spec line]
   (for [[start end] (partition 2 1 (:bounds spec))]
     (.trim (.substring line start end))))
-
-(defmethod row-seq ::flat-file [t]
-  (map (partial make-row t) (line-seq (:reader t))))
-
-(defmacro with-reader [[name spec] & body]
-  `(let [~name (open ~spec)]
-     (try ~@body
-          (finally 
-           (close ~name)))))

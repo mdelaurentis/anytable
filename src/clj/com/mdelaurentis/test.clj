@@ -1,4 +1,5 @@
 (ns com.mdelaurentis.anytable.test
+  (:import [java.io File])
   (:use [com.mdelaurentis anytable]
         [clojure.contrib test-is]))
 
@@ -20,6 +21,8 @@
                                                  "size"      6)]
            (doall (record-seq breeds))))))
 
+(deftest test-write-tab
+  (let [file (File/createTempFile "breeds" ".tab")]
+    ))
+
 (run-tests)
-
-
