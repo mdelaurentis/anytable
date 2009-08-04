@@ -42,6 +42,31 @@
           (finally 
            (close ~name)))))
 
+(defmacro with-writer [[name spec] & body]
+  `(let [~name (open-writer ~spec)]
+     (try ~@body
+          (finally 
+           (close ~name)))))
+
+
+;; In-memory vector of vectors
+
+(defn vector-table [& options] 
+  (merge {:type ::vectors
+          :rows []} 
+         (apply hash-map options)))
+
+(defmethod open-reader ::vectors [t] t)
+(defmethod open-writer ::vectors [t] 
+  (write-row t (:headers t)))
+
+(defmethod row-seq ::vectors [t] (:rows t))
+(defmethod write-row ::vectors [t row]
+  (assoc t
+    :rows (conj (:rows t) row)))
+
+(defmethod close ::vectors [t])
+
 ;; Flat text files
 
 (defmulti parse-row (fn [spec line]
@@ -62,16 +87,18 @@
 
 ;; Delimited flat files
 
-(defn tab-table [loc]
-  {:type ::tab
-   :location loc
-   :delimiter "\t"})
+(defn tab-table [loc & options]
+  (merge
+   {:type ::tab
+    :location loc
+    :delimiter "\t"}
+   (apply hash-map options)))
 
 (defmethod parse-row ::tab [spec line]
   (.split line (:delimiter spec)))
 
 (defmethod format-row ::tab [spec row]
-  (apply str (interpose (:delimiter spec row))))
+  (apply str (interpose (:delimiter spec) row)))
 
 (defmethod open-reader ::tab [table-spec]
   (let [rdr     (streams/reader (:location table-spec))
@@ -83,7 +110,8 @@
 (defmethod open-writer ::tab [table-spec]
   (let [wtr (streams/writer (:location table-spec))]
     (binding [*out* wtr]
-      (println (parse-row headers)))))
+      (println (format-row table-spec (headers table-spec))))
+    (assoc table-spec :writer wtr)))
 
 ;; Fixed-width flat files
 
@@ -108,3 +136,8 @@
 (defmethod parse-row ::fixed-width [spec line]
   (for [[start end] (partition 2 1 (:bounds spec))]
     (.trim (.substring line start end))))
+
+(defn copy [in out]
+  (with-reader [rdr in]
+    (with-writer [wtr (assoc out :headers (:headers in))]
+      (reduce write-row wtr (row-seq rdr)))))
