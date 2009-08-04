@@ -48,7 +48,6 @@
           (finally 
            (close ~name)))))
 
-
 ;; In-memory vector of vectors
 
 (defn vector-table [& options] 
@@ -57,15 +56,13 @@
          (apply hash-map options)))
 
 (defmethod open-reader ::vectors [t] t)
-(defmethod open-writer ::vectors [t] 
-  (write-row t (:headers t)))
+(defmethod open-writer ::vectors [t] t)
+(defmethod close ::vectors [t])
 
 (defmethod row-seq ::vectors [t] (:rows t))
 (defmethod write-row ::vectors [t row]
   (assoc t
     :rows (conj (:rows t) row)))
-
-(defmethod close ::vectors [t])
 
 ;; Flat text files
 
@@ -79,7 +76,8 @@
 
 (defmethod write-row ::flat-file [t row]
   (binding [*out* (:writer t)]
-    (println (format-row t row))))
+    (println (format-row t row)))
+  t)
 
 (defmethod close ::flat-file [t]
   (when-let [r (:reader t)] (.close r))
@@ -139,5 +137,5 @@
 
 (defn copy [in out]
   (with-reader [rdr in]
-    (with-writer [wtr (assoc out :headers (:headers in))]
+    (with-writer [wtr (assoc out :headers (:headers rdr))]
       (reduce write-row wtr (row-seq rdr)))))
