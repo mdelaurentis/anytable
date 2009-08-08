@@ -1,1 +1,5 @@
 repl
+classes
+hsql.log
+hsql.script
+hsql.properties
