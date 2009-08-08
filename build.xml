@@ -4,14 +4,23 @@
 
   <property name="build.dir" location="classes"/>
   <property name="clj.src.dir" location="src/clj"/>
-  <property name="lib.dir" location="lib"/>
-
+  <property name="test.lib.dir" location="deps"/>
+  
   <path id="classpath">
     <pathelement location="${clj.src.dir}"/>
     <pathelement location="${build.dir}"/>
     <pathelement location="/Users/mdelaurentis/src/clojure/clojure.jar"/>
-    <pathelement location="/Users/mdelaurentis/src/clojure-contrib/clojure-contrib.jar"/>
-<!--    <fileset dir="${lib.dir}" includes="**/*.jar"/>  -->
+    <pathelement location="/Users/mdelaurentis/src/clojure-contrib/clojure-contrib.jar"/>    
+  </path>
+
+  <path id="test.classpath">
+    <path refid="classpath"/>
+    <fileset dir="${test.lib.dir}" includes="**/*.jar"/> 
+  </path>
+
+  <path id="repl.classpath">
+    <path refid="test.classpath"/>
+    <pathelement location="/Users/mdelaurentis/src/swank-clojure"/>
   </path>
 
   <target name="init">
@@ -22,7 +31,6 @@
   <target name="compile"
           depends="init"
           description="Compile sources.">
-    <echo message="Classpath is ${classpath}"/>
     <java classname="clojure.lang.Compile"
           classpathref="classpath">
       <sysproperty key="clojure.compile.path" value="${build.dir}"/>
@@ -30,10 +38,10 @@
     </java>
   </target>
 
-  <property name="classpath.property"
-            refid="classpath"/>
-  <target name="repl" description="Start a repl">
-    <echo message="java -cp ${classpath.property}:/Users/mdelaurentis/src/swank-clojure clojure.main &quot;$@&quot;"
+  <property name="repl.classpath.property" refid="repl.classpath"/>
+
+  <target name="repl" description="Make a repl script">
+    <echo message="java -cp ${repl.classpath.property} clojure.main &quot;$@&quot;"
           file="repl"/>
     <chmod file="repl" perm="a+x"/>
   </target>
@@ -41,6 +49,16 @@
   <target name="clean" description="Remove generated files">
     <delete dir="${build.dir}"/>
     <delete file="repl"/>
+    <delete file="hsql.log"/>
+    <delete file="hsql.script"/>
+    <delete file="hsql.properties"/>
+    <delete file="hsql.tmp"/>
+  </target>
+
+  <target name="test" depends="compile">
+    <java classpathref="test.classpath" classname="clojure.main" fork="true">
+      <arg value="${clj.src.dir}/com/mdelaurentis/anytable/test.clj"/>
+    </java>
   </target>
 
 </project>

@@ -1,11 +1,11 @@
 (ns com.mdelaurentis.anytable.test
-  (:import [java.io File])
+  (:import [java.io File]
+           [org.hsqldb.jdbc JDBCDataSource])
+  
   (:use [com.mdelaurentis anytable]
         [clojure.contrib test-is]))
 
 (def breed-headers ["breed" "category" "size"])
-
-
 
 (def breeds
   (reduce write-row
@@ -40,6 +40,25 @@
     (copy breeds (tab-table file :headers breed-headers))
     (is (= (record-seq breeds)
            (record-seq (copy (tab-table file) (vector-table)))))))
+
+(deftest test-jdbc-insert-sql 
+  (let [spec (hsqldb-table :table-name "breeds"
+                           :column-specs [[:breed "VARCHAR(32)"]
+                                          [:category "VARCHAR(32)"]
+                                          [:size "VARCHAR(32)"]])]
+    (is (= "INSERT INTO breeds VALUES(?, ?, ?)"
+           (insert-sql spec)))))
+
+(deftest test-jdbc
+  (let [spec (hsqldb-table :table-name "breeds"
+                           :column-specs [[:breed "VARCHAR(32)"]
+                                          [:category "VARCHAR(32)"]
+                                          [:size "VARCHAR(32)"]])]
+    (copy breeds spec)
+    (with-reader [rdr spec]
+      (is (= (row-seq breeds)
+             (row-seq rdr))))))
+
 
 (run-tests)
 
