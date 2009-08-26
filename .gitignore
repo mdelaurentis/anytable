@@ -1,5 +1,6 @@
-repl
+/bin
 classes
 hsql.log
-hsql.script
 hsql.properties
+hsql.script
+repl
