@@ -1,6 +1,7 @@
 (ns com.mdelaurentis.anytable
   (:require [clojure.contrib.duck-streams :as streams])
-  (:use [clojure.contrib sql]))
+  (:use [clojure.contrib sql])
+  (:gen-class))
 
 (defmulti open-reader
   "Opens the specified table for reading."
@@ -237,4 +238,32 @@
          :subprotocol "hsqldb"
          :subname     "hsql"
          options))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn guess-type [location]
+  (let [file (File. location)]
+    (if (= ".tab"))))
+
+(defn parse-spec [spec]
+  (let [[stuff url] (rest (re-matches #"(.*)\+(.*)" spec))
+        pairs       (.split stuff ",")
+        config      (reduce (fn [res pair]
+                              (let [[k v] (.split pair "=")]
+                                (assoc res (keyword k) v)))
+                            {} pairs)]
+    (assoc config
+      :type (keyword "com.mdelaurentis.anytable" (:type config))
+      :location url)))
+
+(parse-spec "type=tab,delimiter=\t+file:///foo.tab")
+
+(defn -main [cmd & args]
+  (cond 
+    (= cmd "cp")
+    (let [[in out] args
+          in-spec (parse-spec in)
+          out-spec (parse-spec out)]
+      (println "In is " in-spec)
+      (copy (parse-spec in) (parse-spec out)))))
 
