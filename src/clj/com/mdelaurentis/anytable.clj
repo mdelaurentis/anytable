@@ -44,7 +44,6 @@
          ([]          @defaults)
          ([type]      (defaults type))
          ([type spec] 
-            (println "Adding type" type spec)
             (dosync (alter defaults assoc type spec))))))
 
 (defn add-type 
