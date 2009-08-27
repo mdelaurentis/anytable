@@ -1,4 +1,5 @@
 (ns com.mdelaurentis.anytable
+  (:import [java.io File])
   (:require [clojure.contrib.duck-streams :as streams])
   (:use [clojure.contrib sql])
   (:gen-class))
@@ -36,6 +37,21 @@
 (defmulti record-seq 
   "Returns a lazy sequence of records as maps from the given table."
   :type)
+
+(def default-spec 
+     (let [defaults (ref {})]
+       (fn 
+         ([]          @defaults)
+         ([type]      (defaults type))
+         ([type spec] 
+            (println "Adding type" type spec)
+            (dosync (alter defaults assoc type spec))))))
+
+(defn add-type 
+  ([type]
+     (add-type type nil))
+  ([type default] 
+     (default-spec type (assoc default :type type))))
 
 (defmacro with-reader [[name spec] & body]
   `(let [~name (open-reader ~spec)]
@@ -77,9 +93,10 @@
 ;;
 ;; In-memory vector of vectors
 
+(add-type ::vectors {:rows []})
+
 (defn vector-table [& options] 
-  (merge {:type ::vectors
-          :rows []} 
+  (merge (default-spec ::vectors) 
          (apply hash-map options)))
 
 (defmethod open-reader ::vectors [t] t)
@@ -117,12 +134,12 @@
 ;; Delimited flat files
 
 (derive ::tab ::flat-file)
+(add-type ::tab {:delimiter "\t"})
 
 (defn tab-table [loc & options]
   (merge
-   {:type ::tab
-    :location loc
-    :delimiter "\t"}
+   (assoc (default-spec ::tab)
+     :location loc)
    (apply hash-map options)))
 
 (defmethod parse-row ::tab [spec line]
@@ -149,6 +166,7 @@
 ;; Fixed-width flat files
 
 (derive ::fixed-width ::flat-file)
+(add-type ::fixed-width {})
 
 (defn fixed-width-table [loc & cols]
   (let [cols    (partition 2 cols)
@@ -157,11 +175,11 @@
         bounds (reduce (fn [bs w] (conj bs (+ (last bs) w)))
                        [0]
                        widths)]
-    {:type ::fixed-width
-     :location loc
-     :headers  headers
-     :widths   widths
-     :bounds   bounds}))
+    (assoc (default-spec ::fixed-width)
+      :location loc
+      :headers  headers
+      :widths   widths
+      :bounds   bounds)))
 
 (defmethod open-reader ::fixed-width [spec]
   (let [rdr (streams/reader (:location spec))]
@@ -176,8 +194,10 @@
 ;;
 ;; JDBC
 
+(add-type ::jdbc-table)
+
 (defn jdbc-table [& options]
-  (merge {:type ::jdbc}
+  (merge (default-spec ::jdbc)
          (apply hash-map options)))
 
 (defn create [spec]
@@ -232,18 +252,21 @@
 
 ;; HSQLDB
 
+
+(derive ::hsqldb ::jdbc)
+(add-type ::hsqldb 
+          {:classname   "org.hsqldb.jdbc.JDBCDataSource"
+           :subprotocol "hsqldb"
+           :subname     "hsql"})
+
 (defn hsqldb-table [& options]
-  (apply jdbc-table
-         :classname   "org.hsqldb.jdbc.JDBCDataSource"
-         :subprotocol "hsqldb"
-         :subname     "hsql"
-         options))
+  (merge (default-spec ::hsqldb)
+         (apply hash-map options)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn guess-type [location]
-  (let [file (File. location)]
-    (if (= ".tab"))))
+  (let [file (File. location)]))
 
 (defn parse-spec [spec]
   (let [[stuff url] (rest (re-matches #"(.*)\+(.*)" spec))
@@ -256,7 +279,8 @@
       :type (keyword "com.mdelaurentis.anytable" (:type config))
       :location url)))
 
-(parse-spec "type=tab,delimiter=\t+file:///foo.tab")
+(comment
+  (parse-spec "type=tab,delimiter=\t:file:///foo.tab"))
 
 (defn -main [cmd & args]
   (cond 
