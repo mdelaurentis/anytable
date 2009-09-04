@@ -268,25 +268,40 @@
   (let [file (File. location)]))
 
 (defn parse-spec [spec]
-  (let [[stuff url] (rest (re-matches #"(.*)\+(.*)" spec))
-        pairs       (.split stuff ",")
+  (let [pairs       (.split spec ",")
         config      (reduce (fn [res pair]
                               (let [[k v] (.split pair "=")]
                                 (assoc res (keyword k) v)))
-                            {} pairs)]
-    (assoc config
-      :type (keyword "com.mdelaurentis.anytable" (:type config))
-      :location url)))
+                            {} pairs)
+        
+        res (assoc config
+              :type (keyword "com.mdelaurentis.anytable" (:type config)))]
+    (merge (default-spec (:type res)) res)))
 
 (comment
-  (parse-spec "type=tab,delimiter=\t:file:///foo.tab"))
+  (parse-spec "type=tab,location=file:///foo.tab"))
 
-(defn -main [cmd & args]
-  (cond 
-    (= cmd "cp")
-    (let [[in out] args
-          in-spec (parse-spec in)
-          out-spec (parse-spec out)]
-      (println "In is " in-spec)
-      (copy (parse-spec in) (parse-spec out)))))
+(defmulti main (fn [cmd & args]
+                 cmd))
 
+(defmethod main :cp [cmd & args]
+  (when (not (= 2 (count args)))
+    (throw (Exception. "Usage: anytable cp <in-spec> <out-spec>")))
+  (let [[in out] args
+        in-spec (parse-spec in)
+        out-spec (parse-spec out)]
+    (println "in-spec is" in-spec)
+    (println "out-spec is" in-spec)
+    (copy in-spec out-spec)))
+
+(defmethod main :cut [cmd & args]
+  (let [file & fields]
+    ))
+
+(defn -main [& args]
+  (println "Args are" args)
+  (if (empty? args)
+    (main :help)
+    (let [cmd (keyword (first args))
+          args (next args)]
+      (apply main cmd args))))
