@@ -155,10 +155,10 @@
       :reader  rdr)))
 
 (defmethod open-writer ::tab [table-spec]
-  (let [wtr (streams/writer (:location table-spec))]
-    (binding [*out* wtr]
-      (println (format-row table-spec (headers table-spec))))
-    (assoc table-spec :writer wtr)))
+  (let [res (assoc table-spec
+              :writer (streams/writer (:location table-spec)))]
+    (write-row res (headers table-spec))
+    res))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
