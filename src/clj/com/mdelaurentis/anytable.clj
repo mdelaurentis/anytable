@@ -185,9 +185,18 @@
     (assoc spec
       :reader rdr)))
 
+(defmethod open-writer ::fixed-width [table-spec]
+  (let [wtr (streams/writer (:location table-spec))]
+    (assoc table-spec 
+      :writer wtr
+      :format (apply str (map #(format "%%-%ds" %) (:widths table-spec))))))
+
 (defmethod parse-row ::fixed-width [spec line]
   (for [[start end] (partition 2 1 (:bounds spec))]
     (.trim (.substring line start end))))
+
+(defmethod format-row ::fixed-width [spec row]
+  (apply format (:format spec) row))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -267,19 +276,11 @@
 (defn guess-type [location]
   (let [file (File. location)]))
 
-(defn parse-spec [spec]
-  (let [pairs       (.split spec ",")
-        config      (reduce (fn [res pair]
-                              (let [[k v] (.split pair "=")]
-                                (assoc res (keyword k) v)))
-                            {} pairs)
-        
-        res (assoc config
-              :type (keyword "com.mdelaurentis.anytable" (:type config)))]
-    (merge (default-spec (:type res)) res)))
-
-(comment
-  (parse-spec "type=tab,location=file:///foo.tab"))
+(defn parse-spec [spec-str]
+  (let [spec (read-string spec-str)
+        spec (zipmap (keys spec) (map #(if (symbol? %) (str %) %) (vals spec)))
+        type (keyword "com.mdelaurentis.anytable" (str (:type spec)))]
+    (merge (default-spec type) (assoc spec :type type))))
 
 (defmulti main (fn [cmd & args]
                  cmd))
@@ -293,10 +294,6 @@
     (println "in-spec is" in-spec)
     (println "out-spec is" in-spec)
     (copy in-spec out-spec)))
-
-(defmethod main :cut [cmd & args]
-  (let [file & fields]
-    ))
 
 (defn -main [& args]
   (println "Args are" args)
