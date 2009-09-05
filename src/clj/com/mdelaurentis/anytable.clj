@@ -38,20 +38,23 @@
   "Returns a lazy sequence of records as maps from the given table."
   :type)
 
-(def default-spec 
-     (let [defaults (ref {})]
-       (fn 
-         ([]          @defaults)
-         ([type]      (defaults type))
-         ([type spec] 
-            (dosync (alter defaults assoc type spec))))))
+(def table-types (ref {}))
 
 (defn add-type 
   ([type]
      (add-type type nil))
   ([type default] 
-     (default-spec type 
-       (with-meta (assoc default :type type) ^default))))
+     (dosync (alter table-types assoc type 
+                    (with-meta (assoc default :type type) ^default))))
+  ([type parent default]
+     (derive type parent)
+     (let [derived-default (merge (table-types parent) default)
+           derived-meta    (merge-with (fn [a b]
+                                         (if (and (map? a) (map? b))
+                                           (merge a b)
+                                           b))
+                                       ^(table-types parent) ^default)]
+       (add-type type (with-meta derived-default derived-meta)))))
 
 (defmacro with-reader [[name spec] & body]
   `(let [~name (open-reader ~spec)]
@@ -93,10 +96,12 @@
 ;;
 ;; In-memory vector of vectors
 
-(add-type ::vectors {:rows []})
+(add-type ::vectors 
+          #^{:doc "An in-memory table made up of a vector of vectors."}
+          {:rows []})
 
 (defn vector-table [& options] 
-  (merge (default-spec ::vectors) 
+  (merge (table-types ::vectors) 
          (apply hash-map options)))
 
 (defmethod open-reader ::vectors [t] t)
@@ -111,6 +116,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; Flat text files
+
+(add-type ::flat-file
+          #^{:doc "Abstract type for any flat text file."
+             :key-doc {:location "A URL or file locating the table."}
+             :abstract true}
+          {:location nil})
 
 (defmulti parse-row (fn [spec line]
                      (:type spec)))
@@ -137,17 +148,15 @@
 ;;
 ;; Delimited flat files
 
-(derive ::tab ::flat-file)
-(add-type ::tab 
+(add-type ::tab ::flat-file
           #^{:doc "Tab-delimited flat files."
              :key-doc {:delimiter "String used to delimit fields."
                        :location  "The file or URL where the table is located."}}
-          {:delimiter "\t"
-           :location  nil})
+          {:delimiter "\t"})
 
 (defn tab-table [loc & options]
   (merge
-   (assoc (default-spec ::tab)
+   (assoc (table-types ::tab)
      :location loc)
    (apply hash-map options)))
 
@@ -178,15 +187,12 @@
 ;;
 ;; Fixed-width flat files
 
-(derive ::fixed-width ::flat-file)
-(add-type ::fixed-width
+(add-type ::fixed-width ::flat-file
           #^{:doc "Fixed-width flat files."
              :key-doc {:headers "Vector of column headers."
                        :widths "Vector of widths of each column (integers)."
-                       :bounds "Start and end position of each column.  You can specify either this or :widths."}
-             }
-          {:location nil
-           :headers nil
+                       :bounds "Start and end position of each column.  You can specify either this or :widths."}}
+          {:headers nil
            :widths nil
            :bounds nil})
 
@@ -197,7 +203,7 @@
         bounds (reduce (fn [bs w] (conj bs (+ (last bs) w)))
                        [0]
                        widths)]
-    (assoc (default-spec ::fixed-width)
+    (assoc (table-types ::fixed-width)
       :location loc
       :headers  headers
       :widths   widths
@@ -227,10 +233,13 @@
 ;;
 ;; JDBC
 
-(add-type ::jdbc-table)
+(add-type ::jdbc-table
+          #^{:doc "A table in a database."
+             :key-doc {:table-name "The name of the table in the database."}}
+          {:table-name nil})
 
 (defn jdbc-table [& options]
-  (merge (default-spec ::jdbc)
+  (merge (table-types ::jdbc)
          (apply hash-map options)))
 
 (defn create [spec]
@@ -285,22 +294,22 @@
 
 ;; HSQLDB
 
-
-(derive ::hsqldb ::jdbc)
-(add-type ::hsqldb 
+(add-type ::hsqldb ::jdbc
+          #^{:doc "HSQLDB table."
+             :key-doc {:classname "The JDBC driver classname"}}
           {:classname   "org.hsqldb.jdbc.JDBCDataSource"
            :subprotocol "hsqldb"
            :subname     "hsql"})
 
 (defn hsqldb-table [& options]
-  (merge (default-spec ::hsqldb)
+  (merge (table-types ::hsqldb)
          (apply hash-map options)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def default-in-spec (default-spec ::tab))
+(def default-in-spec (table-types ::tab))
 
-(def default-out-spec (default-spec ::tab))
+(def default-out-spec (table-types ::tab))
 
 (defn guess-type [location]
   (let [file (File. location)]))
@@ -312,7 +321,7 @@
   (let [spec (read-string spec-str)
         spec (zipmap (keys spec) (map #(if (symbol? %) (str %) %) (vals spec)))
         type (str-to-type (:type spec))]
-    (merge (default-spec type) (assoc spec :type type))))
+    (merge (table-types type) (assoc spec :type type))))
 
 (defmulti main (fn [cmd & args]
                  cmd))
@@ -335,7 +344,7 @@
 (defn spec-or-default [spec]
   (if spec
     (parse-spec spec)
-    (default-spec ::tab)))
+    (table-types ::tab)))
 
 (defmethod main :cat [cmd & args]
   (with-command-line 
@@ -346,7 +355,7 @@ Usage: anytable cat [options] <in-spec> [<in-spec>...]"
     specs]
    (let [dest (if out
                 (parse-spec out)
-                (default-spec ::tab))]
+                (table-types ::tab))]
      (do-cat dest [] (map parse-spec specs)))))
 
 (defmethod main :cut [cmd & args]
@@ -408,11 +417,17 @@ identified by in* to out*."
            type (str-to-type arg)
            cmd  (keyword arg)]
        (cond
+         (= "types" arg)
+         (do
+           (println "Table types are:")
+           (doseq [[k v] @table-types]
+             (println " " (.getName k) "-" (:doc ^v))))
+         
          ((methods main) cmd)
          (println "Give help for 'anytable" arg "'")
          
-         (default-spec type)
-         (let [default (default-spec type)]
+         (table-types type)
+         (let [default (table-types type)]
            (let [doc (:doc ^default)
                  key-doc (:key-doc ^default)]
              (println (:doc ^default))
