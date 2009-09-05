@@ -50,7 +50,8 @@
   ([type]
      (add-type type nil))
   ([type default] 
-     (default-spec type (assoc default :type type))))
+     (default-spec type 
+       (with-meta (assoc default :type type) ^default))))
 
 (defmacro with-reader [[name spec] & body]
   `(let [~name (open-reader ~spec)]
@@ -137,7 +138,12 @@
 ;; Delimited flat files
 
 (derive ::tab ::flat-file)
-(add-type ::tab {:delimiter "\t"})
+(add-type ::tab 
+          #^{:doc "Tab-delimited flat files."
+             :key-doc {:delimiter "String used to delimit fields."
+                       :location  "The file or URL where the table is located."}}
+          {:delimiter "\t"
+           :location  nil})
 
 (defn tab-table [loc & options]
   (merge
@@ -173,7 +179,16 @@
 ;; Fixed-width flat files
 
 (derive ::fixed-width ::flat-file)
-(add-type ::fixed-width {})
+(add-type ::fixed-width
+          #^{:doc "Fixed-width flat files."
+             :key-doc {:headers "Vector of column headers."
+                       :widths "Vector of widths of each column (integers)."
+                       :bounds "Start and end position of each column.  You can specify either this or :widths."}
+             }
+          {:location nil
+           :headers nil
+           :widths nil
+           :bounds nil})
 
 (defn fixed-width-table [loc & cols]
   (let [cols    (partition 2 cols)
@@ -290,10 +305,13 @@
 (defn guess-type [location]
   (let [file (File. location)]))
 
+(defn str-to-type [type]
+   (keyword "com.mdelaurentis.anytable" (str type)))
+
 (defn parse-spec [spec-str]
   (let [spec (read-string spec-str)
         spec (zipmap (keys spec) (map #(if (symbol? %) (str %) %) (vals spec)))
-        type (keyword "com.mdelaurentis.anytable" (str (:type spec)))]
+        type (str-to-type (:type spec))]
     (merge (default-spec type) (assoc spec :type type))))
 
 (defmulti main (fn [cmd & args]
@@ -380,9 +398,30 @@ identified by in* to out*."
             (when (crit rec)
               (write-record w rec))))))))
 
-(defmethod main :help [& _]
-  (doseq [method (keys (methods main))]
-    (println method)))
+(defmethod main :help 
+  ([help]
+     (doseq [method (keys (methods main))]
+       (println method)))
+
+  ([help & args]
+     (let [arg  (first args)
+           type (str-to-type arg)
+           cmd  (keyword arg)]
+       (cond
+         ((methods main) cmd)
+         (println "Give help for 'anytable" arg "'")
+         
+         (default-spec type)
+         (let [default (default-spec type)]
+           (let [doc (:doc ^default)
+                 key-doc (:key-doc ^default)]
+             (println (:doc ^default))
+             (println "This type supports the following keys:")
+             (doseq [[k v] default :when (not (= k :type))]
+               (if v
+                 (printf "  %s - (%s) %s%n" k v (key-doc k))
+                 (printf "  %s - %s %n" k (key-doc k)))
+               (flush))))))))
 
 (defn -main [& args]
   (if (empty? args)
@@ -390,3 +429,4 @@ identified by in* to out*."
     (let [cmd (keyword (first args))
           args (next args)]
       (apply main cmd args))))
+
