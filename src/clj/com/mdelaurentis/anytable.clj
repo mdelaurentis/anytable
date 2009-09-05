@@ -152,7 +152,9 @@
   (apply str (interpose (:delimiter spec) row)))
 
 (defmethod open-reader ::tab [table-spec]
-  (let [rdr     (streams/reader (:location table-spec))
+  (let [rdr     (if-let [loc (:location table-spec)]
+                  (streams/reader loc)
+                  (streams/reader *in*))
         headers (parse-row table-spec (first (line-seq rdr)))]
     (assoc table-spec
       :headers headers
@@ -281,6 +283,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def default-in-spec (default-spec ::tab))
+
+(def default-out-spec (default-spec ::tab))
+
 (defn guess-type [location]
   (let [file (File. location)]))
 
@@ -308,6 +314,11 @@
         (doseq [r readers]
           (reduce write-record wtr (record-seq r)))))))
 
+(defn spec-or-default [spec]
+  (if spec
+    (parse-spec spec)
+    (default-spec ::tab)))
+
 (defmethod main :cat [cmd & args]
   (with-command-line 
    args
@@ -327,11 +338,11 @@ Usage: anytable cat [options] <in-spec> [<in-spec>...]"
       [[in  i "Read input from here."]
        [out o "Write output to here."]
        fields]
-    (with-reader [r (parse-spec in)]
+    (with-reader [r (spec-or-default in)]
       (let [pairs        (partition 2 fields)
             replacements (zipmap (map first pairs) (map second pairs))
             cols         (replace replacements (headers r))]
-        (with-writer [w (assoc (parse-spec out)
+        (with-writer [w (assoc (spec-or-default out)
                           :headers cols)]
           (reduce write-row w (row-seq r)))))))
 
