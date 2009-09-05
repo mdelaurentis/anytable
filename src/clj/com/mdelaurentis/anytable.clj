@@ -1,7 +1,7 @@
 (ns com.mdelaurentis.anytable
   (:import [java.io File])
   (:require [clojure.contrib.duck-streams :as streams])
-  (:use [clojure.contrib sql])
+  (:use [clojure.contrib sql command-line])
   (:gen-class))
 
 (defmulti open-reader
@@ -125,8 +125,12 @@
   t)
 
 (defmethod close ::flat-file [t]
-  (when-let [r (:reader t)] (.close r))
-  (when-let [w (:writer t)] (.close w)))
+  (when-let [r (:reader t)] 
+    (when (not (= *in* r))
+      (.close r)))
+  (when-let [w (:writer t)]
+    (when (not (= *out* w))
+      (.close w))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -156,7 +160,9 @@
 
 (defmethod open-writer ::tab [table-spec]
   (let [res (assoc table-spec
-              :writer (streams/writer (:location table-spec)))]
+              :writer (if-let [loc (:location table-spec)]
+                        (streams/writer loc)
+                        *out*))]
     (write-row res (headers table-spec))
     res))
 
@@ -186,7 +192,9 @@
       :reader rdr)))
 
 (defmethod open-writer ::fixed-width [table-spec]
-  (let [wtr (streams/writer (:location table-spec))]
+  (let [wtr (if-let [loc (:location table-spec)]
+              (streams/writer loc)
+              *out*)]
     (assoc table-spec 
       :writer wtr
       :format (apply str (map #(format "%%-%ds" %) (:widths table-spec))))))
@@ -288,15 +296,31 @@
 (defmethod main :cp [cmd & args]
   (when (not (= 2 (count args)))
     (throw (Exception. "Usage: anytable cp <in-spec> <out-spec>")))
-  (let [[in out] args
-        in-spec (parse-spec in)
-        out-spec (parse-spec out)]
-    (println "in-spec is" in-spec)
-    (println "out-spec is" in-spec)
-    (copy in-spec out-spec)))
+  (let [[in out] args]
+    (copy (parse-spec in) (parse-spec out))))
+
+(defn do-cat [out-spec readers specs]
+  (if specs
+    (with-reader [rdr (first specs)]
+      (recur out-spec (conj readers rdr) (next specs)))
+    (let [headers (distinct (apply concat (map headers readers)))]
+      (with-writer [wtr (assoc out-spec :headers headers)]
+        (doseq [r readers]
+          (reduce write-record wtr (record-seq r)))))))
+
+(defmethod main :cat [cmd & args]
+  (with-command-line 
+   args
+   "cat - Concatenate some tables together.
+Usage: anytable cat [options] <in-spec> [<in-spec>...]"
+   [[out o "Write output to here."]
+    specs]
+   (let [dest (if out
+                (parse-spec out)
+                (default-spec ::tab))]
+     (do-cat dest [] (map parse-spec specs)))))
 
 (defn -main [& args]
-  (println "Args are" args)
   (if (empty? args)
     (main :help)
     (let [cmd (keyword (first args))
