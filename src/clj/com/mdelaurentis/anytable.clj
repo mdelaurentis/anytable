@@ -320,6 +320,25 @@ Usage: anytable cat [options] <in-spec> [<in-spec>...]"
                 (default-spec ::tab))]
      (do-cat dest [] (map parse-spec specs)))))
 
+(defmethod main :rename [cmd & args]
+  (with-command-line
+      args
+      "rename - Rename some columns."
+      [[in  i "Read input from here."]
+       [out o "Write output to here."]
+       fields]
+    (with-reader [r (parse-spec in)]
+      (let [pairs        (partition 2 fields)
+            replacements (zipmap (map first pairs) (map second pairs))
+            cols         (replace replacements (headers r))]
+        (with-writer [w (assoc (parse-spec out)
+                          :headers cols)]
+          (reduce write-row w (row-seq r)))))))
+
+(defmethod main :help [& _]
+  (doseq [method (keys (methods main))]
+    (println method)))
+
 (defn -main [& args]
   (if (empty? args)
     (main :help)
