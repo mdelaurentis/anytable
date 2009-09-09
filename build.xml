@@ -5,6 +5,8 @@
   <property name="build.dir" location="classes"/>
   <property name="bin.dir" location="bin"/>
   <property name="clj.src.dir" location="src/clj"/>
+  <property name="java.src.dir" location="src/java"/>
+  <property name="java.interfaces.src.dir" location="src/java-interfaces"/>
   <property name="test.lib.dir" location="deps"/>
   
   <path id="classpath">
@@ -35,11 +37,17 @@
   <target name="compile"
           depends="init"
           description="Compile sources.">
+    <javac classpathref="classpath"
+           srcdir="${java.interfaces.src.dir}"
+           destdir="${build.dir}"/>
     <java classname="clojure.lang.Compile"
           classpathref="classpath">
       <sysproperty key="clojure.compile.path" value="${build.dir}"/>
       <arg value="com.mdelaurentis.anytable"/>
     </java>
+    <javac classpathref="classpath"
+           srcdir="${java.src.dir}"
+           destdir="${build.dir}"/>
   </target>
 
   <property name="repl.classpath" refid="repl.classpath"/>

@@ -3,7 +3,11 @@
            [java.net URI MalformedURLException URL])
   (:require [clojure.contrib.duck-streams :as streams])
   (:use [clojure.contrib sql command-line])
-  (:gen-class))
+  (:gen-class
+   :name com.mdelaurentis.anytable.AnytableImpl
+   :implements [com.mdelaurentis.anytable.Anytable]
+   :constructors {[Object] []}
+   :init init))
 
 (defmulti open-reader
   "Opens the specified table for reading."
@@ -488,24 +492,32 @@ identified by in* to out*."
           args (next args)]
       (apply main cmd args))))
 
-(gen-interface
- :name 'com.mdelaurentis.anytable.AnytableHeaders
- :methods [[headers [] IPersistentVector]])
+(defn -init [spec]
+  [[] spec])
 
-(gen-interface 
- :name 'com.mdelaurentis.anytable.AnytableReader
- :extends [Closeable AnytableHeaders]
- :methods [[rows    [] ISeq]
-           [records [] ISeq]])
+(defn -headers [this]
+  (headers (.state this)))
 
-(gen-interface 
- :name 'com.mdelaurentis.anytable.AnytableWriter
- :extends [Closeable AnytableHeaders]
- :methods [[writeRow [IPersistentVector]]
-           [writeRecord [IPersistentMap]]])
+(defn -headers [this]
+  (headers (.state this)))
+
+(defn -spec [this]
+  (.state this))
+
+(defn -openReader [this]
+  (com.mdelaurentis.anytable.AnytableImpl. (open-reader (.state this))))
+
+(defn -openWriter [this]
+  (com.mdelaurentis.anytable.AnytableImpl. (open-writer (.state this))))
 
 (defn -rows [this]
   (row-seq (.state this)))
 
 (defn -records [this]
   (record-seq (.state this)))
+
+(defn -writeRow [this row]
+  (write-row (.state this)))
+
+(defn -writeRecord [this rec]
+  (write-record (.state this)))
