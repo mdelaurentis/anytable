@@ -1,5 +1,6 @@
 (ns com.mdelaurentis.anytable
-  (:import [java.io File])
+  (:import [java.io File]
+           [java.net URI MalformedURLException URL])
   (:require [clojure.contrib.duck-streams :as streams])
   (:use [clojure.contrib sql command-line])
   (:gen-class))
@@ -41,6 +42,11 @@
 (def table-types (ref {}))
 
 (defn add-type 
+  "Adds a table type.  type should be a the keyword identifying the
+type.  Parent, if supplided, must be a keyword identifying the parent
+type of this type.  This type will inherit any default values from its
+parent.  default, if supplied, must be a default configuration map for
+the table."
   ([type]
      (add-type type nil))
   ([type default] 
@@ -312,7 +318,8 @@
 (def default-out-spec (table-types ::tab))
 
 (defn guess-type [location]
-  (let [file (File. location)]))
+  (if (.endsWith (str location) ".tab")
+    (tab-table location)))
 
 (defn str-to-type [type]
    (keyword "com.mdelaurentis.anytable" (str type)))
@@ -322,6 +329,41 @@
         spec (zipmap (keys spec) (map #(if (symbol? %) (str %) %) (vals spec)))
         type (str-to-type (:type spec))]
     (merge (table-types type) (assoc spec :type type))))
+
+(defn error [& msgs]
+  (throw (Exception. (apply str msgs))))
+
+
+
+(defn validate-map-spec [spec]
+  (and (map? spec)
+       (table-types (:type spec))
+       spec))
+
+(defn parse-str-map-spec [spec]
+  (and (string? spec)
+       (.startsWith (.trim spec) "{")
+       (parse-spec spec)))
+
+(defn parse-location [loc]
+  (let [parsed-loc (or (and (or (instance? File loc) 
+                                (instance? URI loc))
+                            (.endsWith (str loc) ".tab")
+                            loc)
+                       (and (string? loc)
+                            (try (URL. loc)
+                                 (catch MalformedURLException e
+                                   (File. loc)))))]
+    (tab-table parsed-loc)))
+
+(defn parse-any-spec [spec]
+  (or (validate-map-spec spec)
+      (parse-str-map-spec spec)
+      (parse-location spec)
+      (error "Couldn't build a table representation from "
+             spec ".  Please provide either a map with a :type field of one of "
+             (keys @table-types) 
+             ", or a URL or file name pointing to a tab-delimited file.")))
 
 (defmulti main (fn [cmd & args]
                  cmd))
@@ -409,6 +451,7 @@ identified by in* to out*."
 
 (defmethod main :help 
   ([help]
+     (println "")
      (doseq [method (keys (methods main))]
        (println method)))
 

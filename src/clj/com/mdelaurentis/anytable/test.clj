@@ -1,5 +1,6 @@
 (ns com.mdelaurentis.anytable.test
   (:import [java.io File]
+           [java.net URL]
            [org.hsqldb.jdbc JDBCDataSource])
   
   (:use [com.mdelaurentis anytable]
@@ -59,6 +60,16 @@
       (is (= (row-seq breeds)
              (row-seq rdr))))))
 
+(deftest test-parse-any-spec
+  (let [expected (tab-table (File. "foo.tab") :delimiter "\t")]
+    (is (= (parse-any-spec expected)
+           expected))
+    (is (= (parse-any-spec (File. "foo.tab"))
+           expected))
+    (is (= (parse-any-spec "foo.tab")
+           (tab-table (File. "foo.tab") :delimiter "\t")))
+    (is (= (parse-any-spec "file:///foo.tab")
+           (tab-table (URL. "file:///foo.tab") :delimiter "\t")))))
 
 (run-tests)
 
