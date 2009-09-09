@@ -488,3 +488,24 @@ identified by in* to out*."
           args (next args)]
       (apply main cmd args))))
 
+(gen-interface
+ :name 'com.mdelaurentis.anytable.AnytableHeaders
+ :methods [[headers [] IPersistentVector]])
+
+(gen-interface 
+ :name 'com.mdelaurentis.anytable.AnytableReader
+ :extends [Closeable AnytableHeaders]
+ :methods [[rows    [] ISeq]
+           [records [] ISeq]])
+
+(gen-interface 
+ :name 'com.mdelaurentis.anytable.AnytableWriter
+ :extends [Closeable AnytableHeaders]
+ :methods [[writeRow [IPersistentVector]]
+           [writeRecord [IPersistentMap]]])
+
+(defn -rows [this]
+  (row-seq (.state this)))
+
+(defn -records [this]
+  (record-seq (.state this)))
