@@ -3,10 +3,12 @@
          xmlns:mvn="urn:maven-artifact-ant">
 
   <property name="build.dir" location="classes"/>
+  <property name="test.build.dir" location="test-classes"/>
   <property name="bin.dir" location="bin"/>
   <property name="clj.src.dir" location="src/clj"/>
   <property name="java.src.dir" location="src/java"/>
   <property name="java.interfaces.src.dir" location="src/java-interfaces"/>
+  <property name="java.test.src.dir" location="test/java"/>
   <property name="test.lib.dir" location="deps"/>
   
   <path id="classpath">
@@ -19,6 +21,7 @@
   <path id="test.classpath">
     <path refid="classpath"/>
     <fileset dir="${test.lib.dir}" includes="**/*.jar"/> 
+    <pathelement location="${test.build.dir}"/>
   </path>
 
   <path id="repl.classpath">
@@ -32,6 +35,7 @@
     <tstamp/>
     <mkdir dir="${build.dir}"/>
     <mkdir dir="${bin.dir}"/>
+    <mkdir dir="${test.build.dir}"/>
   </target>
 
   <target name="compile"
@@ -51,6 +55,7 @@
   </target>
 
   <property name="repl.classpath" refid="repl.classpath"/>
+  <property name="test.classpath" refid="test.classpath"/>
 
   <target name="repl" description="Make a repl script">
     <echo message="java -cp ${repl.classpath} clojure.main &quot;$@&quot;"
@@ -69,6 +74,7 @@
   
   <target name="clean" description="Remove generated files">
     <delete dir="${build.dir}"/>
+    <delete dir="${test.build.dir}"/>
     <delete dir="${bin.dir}"/>
     <delete file="repl"/>
     <delete file="hsql.log"/>
@@ -77,10 +83,22 @@
     <delete file="hsql.tmp"/>
   </target>
 
-  <target name="test" depends="compile">
+  <target name="compile-test" depends="compile,init">
+    <echo message="Classpath is ${test.classpath}"/>
+    <javac classpathref="test.classpath"
+           srcdir="${java.test.src.dir}"
+           destdir="test-classes"/>
+  </target>
+
+  <target name="test" depends="compile,compile-test">
     <java classpathref="test.classpath" classname="clojure.main" fork="true">
       <arg value="${clj.src.dir}/com/mdelaurentis/anytable/test.clj"/>
     </java>
+    <junit>
+      <classpath refid="test.classpath"/>
+      <formatter type="plain" usefile="false"/>
+      <test name="AnytableTest"/>
+    </junit>
   </target>
 
 </project>

@@ -7,7 +7,8 @@
    :name com.mdelaurentis.anytable.AnytableImpl
    :implements [com.mdelaurentis.anytable.Anytable]
    :constructors {[Object] []}
-   :init init))
+   :init init
+   :state state))
 
 (defmulti open-reader
   "Opens the specified table for reading."
@@ -93,6 +94,9 @@ the table."
 (defmethod write-row :default [spec row]
   (throw (Exception. (str "No write-row implementation for " spec))))
 
+(defmethod open-reader :default [spec]
+  (throw (Exception. (str "No open-reader implementation for " spec))))
+
 ;; Most readers will want record-seq to be based on row-seq
 (defmethod record-seq :default [table-spec]
   (let [hs (headers table-spec)]
@@ -134,7 +138,7 @@ the table."
           {:location nil})
 
 (defmulti parse-row (fn [spec line]
-                     (:type spec)))
+                      (:type spec)))
 (defmulti format-row (fn [spec row]
                        (:type spec)))
 
@@ -171,7 +175,7 @@ the table."
    (apply hash-map options)))
 
 (defmethod parse-row ::tab [spec line]
-  (.split line (:delimiter spec)))
+  (vec (.split line (:delimiter spec))))
 
 (defmethod format-row ::tab [spec row]
   (apply str (interpose (:delimiter spec) row)))
@@ -493,7 +497,7 @@ identified by in* to out*."
       (apply main cmd args))))
 
 (defn -init [spec]
-  [[] spec])
+  [[] (parse-any-spec spec)])
 
 (defn -headers [this]
   (headers (.state this)))
@@ -521,3 +525,6 @@ identified by in* to out*."
 
 (defn -writeRecord [this rec]
   (write-record (.state this)))
+
+(defn -close [this]
+  (close (.state this)))
