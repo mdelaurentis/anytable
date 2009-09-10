@@ -21,7 +21,7 @@ public class AnytableTest {
     Anytable at = null;
     String[][] valuesRead = new String[3][3];
     try {
-      at = anytable("test-input/breeds.tab").openReader();
+      at = anytable("sample-data/breeds.tab").openReader();
       int rowNum = 0;
       for (IPersistentVector row : at.rows()) {
         valuesRead[rowNum][0] = (String)row.nth(0);
@@ -43,7 +43,7 @@ public class AnytableTest {
     Anytable at = null;
     String[][] valuesRead = new String[3][3];
     try {
-      at = anytable("test-input/breeds.tab").openReader();
+      at = anytable("sample-data/breeds.tab").openReader();
       int rowNum = 0;
       for (IPersistentMap rec : at.records()) {
         valuesRead[rowNum][0] = (String)rec.valAt("breed");

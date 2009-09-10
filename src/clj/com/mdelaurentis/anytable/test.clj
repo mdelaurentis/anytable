@@ -25,12 +25,12 @@
 
 (deftest test-read-tab
   (is (= (record-seq breeds)
-         (record-seq (copy (tab-table "test-input/breeds.tab")
+         (record-seq (copy (tab-table "sample-data/breeds.tab")
                            (vector-table))))))
 
 (deftest test-read-fixed-width
   (is (= (record-seq breeds)
-         (record-seq (copy  (fixed-width-table "test-input/breeds.txt"
+         (record-seq (copy  (fixed-width-table "sample-data/breeds.txt"
                                                "breed"    12
                                                "category"  5
                                                "size"      6)

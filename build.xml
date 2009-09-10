@@ -8,14 +8,14 @@
   <property name="clj.src.dir" location="src/clj"/>
   <property name="java.src.dir" location="src/java"/>
   <property name="java.interfaces.src.dir" location="src/java-interfaces"/>
-  <property name="java.test.src.dir" location="test/java"/>
-  <property name="test.lib.dir" location="deps"/>
+  <property name="java.test.src.dir" location="test/src/java"/>
+  <property name="test.lib.dir" location="test/lib"/>
+  <property name="lib.dir" location="lib"/>
   
   <path id="classpath">
     <pathelement location="${clj.src.dir}"/>
     <pathelement location="${build.dir}"/>
-    <pathelement location="/Users/mdelaurentis/src/clojure/clojure.jar"/>
-    <pathelement location="/Users/mdelaurentis/src/clojure-contrib/clojure-contrib.jar"/>    
+    <fileset dir="${lib.dir}" includes="**/*.jar"/> 
   </path>
 
   <path id="test.classpath">
@@ -80,7 +80,7 @@
     <delete file="hsql.log"/>
     <delete file="hsql.script"/>
     <delete file="hsql.properties"/>
-    <delete file="hsql.tmp"/>
+    <delete dir="hsql.tmp"/>
   </target>
 
   <target name="compile-test" depends="compile,init">
