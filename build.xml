@@ -11,7 +11,7 @@
   <property name="java.test.src.dir" location="test/src/java"/>
   <property name="test.lib.dir" location="test/lib"/>
   <property name="lib.dir" location="lib"/>
-  
+
   <path id="classpath">
     <pathelement location="${clj.src.dir}"/>
     <pathelement location="${build.dir}"/>
@@ -84,7 +84,6 @@
   </target>
 
   <target name="compile-test" depends="compile,init">
-    <echo message="Classpath is ${test.classpath}"/>
     <javac classpathref="test.classpath"
            srcdir="${java.test.src.dir}"
            destdir="test-classes"/>
