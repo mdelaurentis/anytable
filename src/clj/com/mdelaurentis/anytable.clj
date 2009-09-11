@@ -331,12 +331,6 @@ the table."
 (defn str-to-type [type]
    (keyword "com.mdelaurentis.anytable" (str type)))
 
-(defn parse-spec [spec-str]
-  (let [spec (read-string spec-str)
-        spec (zipmap (keys spec) (map #(if (symbol? %) (str %) %) (vals spec)))
-        type (str-to-type (:type spec))]
-    (merge (table-types type) (assoc spec :type type))))
-
 (defn error [& msgs]
   (throw (Exception. (apply str msgs))))
 
@@ -348,7 +342,10 @@ the table."
 (defn parse-str-map-spec [spec]
   (and (string? spec)
        (.startsWith (.trim spec) "{")
-       (parse-spec spec)))
+       (let [spec (read-string spec)
+             spec (zipmap (keys spec) (map #(if (symbol? %) (str %) %) (vals spec)))
+             type (str-to-type (:type spec))]
+         (merge (table-types type) (assoc spec :type type)))))
 
 (defn parse-location [loc]
   (let [parsed-loc (or (and (or (instance? File loc) 
@@ -361,7 +358,7 @@ the table."
                                    (File. loc)))))]
     (tab-table parsed-loc)))
 
-(defn parse-any-spec [spec]
+(defn anytable-spec [spec]
   (or (validate-map-spec spec)
       (parse-str-map-spec spec)
       (parse-location spec)

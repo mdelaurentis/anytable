@@ -9,7 +9,7 @@
    :state state))
 
 (defn -init [spec]
-  [[] (parse-any-spec spec)])
+  [[] (anytable-spec spec)])
 
 (defn -headers [this]
   (headers (.state this)))

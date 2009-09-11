@@ -15,7 +15,7 @@
   (when (not (= 2 (count args)))
     (throw (Exception. "Usage: anytable cp <in-spec> <out-spec>")))
   (let [[in out] args]
-    (copy (parse-spec in) (parse-spec out))))
+    (copy (anytable-spec in) (anytable-spec out))))
 
 (defn do-cat [out-spec readers specs]
   (if specs
@@ -28,7 +28,7 @@
 
 (defn spec-or-default [spec]
   (if spec
-    (parse-spec spec)
+    (anytable-spec spec)
     (table-types ::tab)))
 
 (defmethod main :cat [cmd & args]
@@ -39,9 +39,9 @@ Usage: anytable cat [options] <in-spec> [<in-spec>...]"
    [[out o "Write output to here."]
     specs]
    (let [dest (if out
-                (parse-spec out)
+                (anytable-spec out)
                 (table-types ::tab))]
-     (do-cat dest [] (map parse-spec specs)))))
+     (do-cat dest [] (map anytable-spec specs)))))
 
 (defmethod main :cut [cmd & args]
   (with-command-line

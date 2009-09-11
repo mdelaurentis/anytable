@@ -60,15 +60,15 @@
       (is (= (row-seq breeds)
              (row-seq rdr))))))
 
-(deftest test-parse-any-spec
+(deftest test-anytable-spec
   (let [expected (tab-table (File. "foo.tab") :delimiter "\t")]
-    (is (= (parse-any-spec expected)
+    (is (= (anytable-spec expected)
            expected))
-    (is (= (parse-any-spec (File. "foo.tab"))
+    (is (= (anytable-spec (File. "foo.tab"))
            expected))
-    (is (= (parse-any-spec "foo.tab")
+    (is (= (anytable-spec "foo.tab")
            (tab-table (File. "foo.tab") :delimiter "\t")))
-    (is (= (parse-any-spec "file:///foo.tab")
+    (is (= (anytable-spec "file:///foo.tab")
            (tab-table (URL. "file:///foo.tab") :delimiter "\t")))))
 
 (run-tests)
