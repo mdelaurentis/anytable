@@ -305,6 +305,8 @@ the table."
 (defmethod record-seq ::jdbc [rdr]
   (resultset-seq (:resultset rdr)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 ;; HSQLDB
 
 (add-type ::hsqldb ::jdbc
@@ -319,6 +321,9 @@ the table."
          (apply hash-map options)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; Functions for creating an anytable spec from Strings, Files, URIs, and maps
+;;
 
 (def default-in-spec (table-types ::tab))
 
