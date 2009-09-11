@@ -93,9 +93,9 @@ identified by in* to out*."
 
 (defmethod main :help 
   ([help]
-     (println "")
+     (println "Usage: anytable <command> [options]")
      (doseq [method (keys (methods main))]
-       (println method)))
+       (println " " (.substring (str method) 1))))
 
   ([help & args]
      (let [arg  (first args)
