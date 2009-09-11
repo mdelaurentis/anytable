@@ -11,19 +11,24 @@
    :state state))
 
 (defmulti open-reader
-  "Opens the specified table for reading."
+  "Returns a copy of the given table that is open for reading.  You
+must call close on the resulting reader when you're done reading from
+it."
   :type)
 
 (defmulti open-writer 
-  "Opens the specified table for writing."
+    "Returns a copy of the given table that is open for writing.  You
+must call close on the resulting writer when you're done writing to
+it."
   :type)
 
 (defmulti close
-  "Close the reader and writer on the given table."
+  "Closes the reader and writer on the given table."
   :type)
 
 (defmulti write-row
-  "Writes a single row (vector of objects) to the given table writer."
+  "Writes a single row (vector of objects) to the given table writer.
+Returns the writer as it exists after the row was written."
   (fn [wtr row]
     (:type wtr)))
 
@@ -258,8 +263,6 @@ the table."
 
 (defn create [spec]
   (with-connection spec
-    (try (drop-table (:table-name spec))
-         (catch Exception e))
     (apply create-table (:table-name spec) 
            (:column-specs spec))))
 
@@ -447,7 +450,6 @@ identified by in* to out*."
        [out o "Write output to here."]  
        crit]
     (let [crit (eval (read-string (first crit)))]
-      (println "Crit is" crit)
       (when-not (fn? crit)
         (throw (Exception. "criteria should evaluate to a function that takes a record")))
       (with-reader [r (spec-or-default in)]
