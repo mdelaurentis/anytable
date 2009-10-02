@@ -100,47 +100,61 @@ identified by in* to out*."
 (defn first-sentence [string]
   (second (re-matches (Pattern/compile "(.+?\\.).*" Pattern/DOTALL) string)))
 
-(defmethod main :help 
-  ([help]
-     (println "Usage: anytable <command> [options]")
-     (newline)
-     (println "Commands:")
-     (doseq [cmd (keys (methods main))]
-       (println " " (.substring (str cmd) 1) "-" 
-                (first-sentence (:desc (commands cmd) ""))))
-     (newline)
-     (println "Try \"anytable help <cmd>\" to get detailed help for a command."))
+(dosync
+ (alter commands assoc :help {:desc "Get help on a command or a table type."}))
 
-  ([help & args]
+(defn print-type-list-help []
+  (println "Table types:")
+  (doseq [[k v] @table-types]
+    (println " " (.getName k) "-" (:doc ^v))))
+
+(defn print-type-help [type]
+  (let [default (table-types type)]
+    (let [doc (:doc ^default)
+          key-doc (:key-doc ^default)]
+      (println (:doc ^default))
+      (println "This type supports the following keys:")
+      (doseq [[k v] default :when (not (= k :type))]
+        (if v
+          (printf "  %s - (%s) %s%n" k v (key-doc k))
+          (printf "  %s - %s %n" k (key-doc k)))
+        (flush)))))
+
+(defn print-cmd-list-help []
+  (println "Commands:")
+  (doseq [cmd (keys (methods main))]
+    (println " " (.substring (str cmd) 1) "-" 
+             (first-sentence (:desc (commands cmd) "")))))
+
+(defn print-cmd-help [cmd]
+  (print-help (:desc (commands cmd))
+              (make-map [] (:cmdspec (commands cmd)))))
+
+(defn print-usage-help []
+  (println "Usage: anytable <command> [options]")
+  (newline)
+  (print-cmd-list-help)
+  (newline)
+  (print-type-list-help)
+  (newline)
+  (println "Try \"anytable help <cmd>\" to get detailed help for a command")
+  (println " or \"anytable help <type>\" to get help for a table type."))
+
+(defmethod main :help 
+  ([_ & args]
      (let [arg  (first args)
            type (str-to-type arg)
-           cmd  (keyword arg)]
+           cmd  (when arg (keyword arg))]
        (cond
-         (= "types" arg)
-         (do
-           (println "Table types are:")
-           (doseq [[k v] @table-types]
-             (println " " (.getName k) "-" (:doc ^v))))
-         
-         ((methods main) cmd)
-         (print-help (:desc (commands cmd))
-                     (make-map [] (:cmdspec (commands cmd))))
-         
-         (table-types type)
-         (let [default (table-types type)]
-           (let [doc (:doc ^default)
-                 key-doc (:key-doc ^default)]
-             (println (:doc ^default))
-             (println "This type supports the following keys:")
-             (doseq [[k v] default :when (not (= k :type))]
-               (if v
-                 (printf "  %s - (%s) %s%n" k v (key-doc k))
-                 (printf "  %s - %s %n" k (key-doc k)))
-               (flush))))))))
+         (= "types" arg)      (print-type-list-help)
+         (= "commands" arg)   (print-cmd-list-help)
+         (table-types type)   (print-type-help type)
+         ((methods main) cmd) (print-cmd-help cmd)
+         :else                (print-usage-help)))))
 
 (defn -main [& args]
   (if (empty? args)
-    (main :help)
+    (main :help "usage")
     (let [cmd (keyword (first args))
           args (next args)]
       (apply main cmd args))))
