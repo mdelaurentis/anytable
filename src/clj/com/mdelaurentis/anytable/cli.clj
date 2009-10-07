@@ -83,10 +83,10 @@ identified by in* to out*."
             (reduce write-row w (row-seq r))))))
 
 (defcmd :filter 
-  "Select rows from an input table based on some criteria."  
-  [[in i "Read input from here."]
-   [out o "Write output to here."]  
-   crit]
+    "Select rows from an input table based on some criteria."  
+    [[in i "Read input from here."]
+     [out o "Write output to here."]  
+     crit]
   (let [crit (eval (read-string (first crit)))]
     (when-not (fn? crit)
       (throw (Exception. "criteria should evaluate to a function that takes a record")))
@@ -96,6 +96,19 @@ identified by in* to out*."
         (doseq [rec (record-seq r)]
           (when (crit rec)
             (write-record w rec)))))))
+
+(defcmd :view
+    "Launch an interactive viewer for a table."
+    [[in i "Read input from here"]]
+  (with-reader [r (spec-or-default in)]
+    (let [hs    (headers r)
+          width (apply max (map count hs))
+          fmt   (str "%" width "s: %s%n")]
+      (doseq [rec (record-seq r)]
+        (doseq [h hs]
+          (printf fmt h (rec h))
+          (flush))
+        (.readLine *in*)))))
 
 (defn first-sentence [string]
   (second (re-matches (Pattern/compile "(.+?\\.).*" Pattern/DOTALL) string)))
