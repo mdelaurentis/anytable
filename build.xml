@@ -108,7 +108,8 @@
 
   <target name="test" depends="compile,compile-test"
           description="Run tests (both Clojure and Java).">
-    <java classpathref="test.classpath" classname="clojure.main" fork="true">
+    <java classpathref="test.classpath" classname="clojure.main" fork="true"
+          failonerror="true">
       <arg value="${clj.src.dir}/com/mdelaurentis/anytable/test.clj"/>
     </java>
     <junit>
