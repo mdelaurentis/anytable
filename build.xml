@@ -5,7 +5,9 @@
   <property name="build.dir" location="classes"/>
   <property name="test.build.dir" location="test-classes"/>
   <property name="bin.dir" location="bin"/>
+  <property name="doc.dir" location="doc"/>
   <property name="clj.src.dir" location="src/clj"/>
+  <property name="scripts.dir" location="scripts"/>
   <property name="java.src.dir" location="src/java"/>
   <property name="java.interfaces.src.dir" location="src/java-interfaces"/>
   <property name="java.test.src.dir" location="test/src/java"/>
@@ -39,6 +41,7 @@
     <mkdir dir="${build.dir}"/>
     <mkdir dir="${bin.dir}"/>
     <mkdir dir="${test.build.dir}"/>
+    <mkdir dir="${doc.dir}"/>
   </target>
 
   <target name="compile"
@@ -57,6 +60,7 @@
       <sysproperty key="clojure.compile.path" value="${build.dir}"/>
       <arg value="com.mdelaurentis.anytable"/>
       <arg value="com.mdelaurentis.anytable.cli"/>
+      <arg value="com.mdelaurentis.anytable.doc"/>
       <arg value="com.mdelaurentis.anytable.AnytableImpl"/>
     </java>
 
@@ -67,6 +71,13 @@
            destdir="${build.dir}"/>
   </target>
   
+  <target name="doc" depends="init,compile">
+    <java classname="com.mdelaurentis.anytable.doc"
+          classpathref="classpath"
+          output="${doc.dir}/index.html"
+          fork="true"/>
+  </target>
+
   <target name="scripts" depends="init" 
           description="Make a the anytable script and a repl script.">
     <echo message="java -cp ${repl.classpath} clojure.main &quot;$@&quot;"
