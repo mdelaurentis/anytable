@@ -41,7 +41,7 @@
 (defn spec-or-default [spec]
   (if spec
     (anytable-spec spec)
-    (table-types ::tab)))
+    (table-types (keyword "com.mdelaurentis.anytable" "tab"))))
 
 (defcmd :cat
    "Concatenate some tables together.
@@ -56,14 +56,17 @@ Usage: anytable cat [options] <in-spec> [<in-spec>...]"
 (defcmd :cut
       "Select some columns from the input table.
 Usage: anytable cut [options] field [field...]"
-      [[in i "Read input from here."]
-       [out o "Write output to here."]  
+      [[in      i "Read input from here."]
+       [out     o "Write output to here."]
+       [invert? v "Invert field selection - include only fields that don't match."]
        cols] 
-    (println "Cutting " cols "from" in)
     (with-reader [r (spec-or-default in)]
-      (with-writer [w (assoc (spec-or-default out)
-                        :headers cols)]
-        (reduce write-record w (record-seq r)))))
+      (let [hs (if invert?
+                 (filter (complement (apply hash-set cols)) (headers r))
+                 cols)]
+        (with-writer [w (assoc (spec-or-default out)
+                          :headers hs)]
+          (reduce write-record w (record-seq r))))))
 
 (defcmd :rename
       "Rename some columns.

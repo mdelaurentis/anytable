@@ -10,8 +10,9 @@
   <property name="scripts.dir" location="scripts"/>
   <property name="java.src.dir" location="src/java"/>
   <property name="java.interfaces.src.dir" location="src/java-interfaces"/>
-  <property name="java.test.src.dir" location="test/src/java"/>
-  <property name="test.lib.dir" location="test/lib"/>
+  <property name="test.dir" location="test"/>
+  <property name="java.test.src.dir" location="${test.dir}/src/java"/>
+  <property name="test.lib.dir" location="${test.dir}/lib"/>
   <property name="lib.dir" location="lib"/>
 
   <path id="classpath">
@@ -97,6 +98,10 @@
     <delete file="hsql.script"/>
     <delete file="hsql.properties"/>
     <delete dir="hsql.tmp"/>
+    <delete>
+      <fileset dir="${test.dir}" includes="*.diff"/>
+      <fileset dir="${test.dir}/actual" includes="*"/>
+    </delete>
   </target>
 
   <target name="compile-test" depends="compile,init"
@@ -117,6 +122,22 @@
       <formatter type="plain" usefile="false"/>
       <test name="AnytableTest"/>
     </junit>
+  </target>
+
+  <target name="test-tools" depends="compile,scripts"
+          description="Test the command-line tools (requires make)">
+    <exec executable="make">
+      <arg value="-C"/>
+      <arg value="${test.dir}"/>
+    </exec>
+  </target>
+
+  <target name="clean-test-tools" depends="compile,scripts"
+          description="Clean up after testing command-line tools">
+    <exec executable="make">
+      <arg value="-C"/>
+      <arg value="${test.dir}"/>
+    </exec>
   </target>
 
 </project>
