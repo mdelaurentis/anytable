@@ -45,6 +45,9 @@ Returns the writer as it exists after the row was written."
   "Returns a lazy sequence of records as maps from the given table."
   :type)
 
+(defmulti enhance-spec 
+  :type)
+
 (def table-types (ref {}))
 
 (defn add-type 
@@ -106,6 +109,9 @@ the table."
 ;; Most readers will want write-record to be based on write-row
 (defn write-record [t record]
   (write-row t (map record (headers t))))
+
+(defmethod enhance-spec :default [spec]
+  spec)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -211,18 +217,20 @@ the table."
            :widths nil
            :bounds nil})
 
+(defmethod enhance-spec ::fixed-width [spec]
+  (assoc spec 
+    :bounds (reduce (fn [bs w] (conj bs (+ (last bs) w)))
+                    [0]
+                    (:widths spec))))
+
 (defn fixed-width-table [loc & cols]
   (let [cols    (partition 2 cols)
         headers (map first cols)
-        widths  (map second cols)
-        bounds (reduce (fn [bs w] (conj bs (+ (last bs) w)))
-                       [0]
-                       widths)]
-    (assoc (table-types ::fixed-width)
-      :location loc
-      :headers  headers
-      :widths   widths
-      :bounds   bounds)))
+        widths  (map second cols)]
+    (enhance-spec (assoc (table-types ::fixed-width)
+                    :location loc
+                    :headers  headers
+                    :widths   widths))))
 
 (defmethod open-reader ::fixed-width [spec]
   (let [rdr (streams/reader (:location spec))]
@@ -239,7 +247,8 @@ the table."
 
 (defmethod parse-row ::fixed-width [spec line]
   (for [[start end] (partition 2 1 (:bounds spec))]
-    (.trim (.substring line start end))))
+    (do
+      (.trim (.substring line start end)))))
 
 (defmethod format-row ::fixed-width [spec row]
   (apply format (:format spec) row))
@@ -364,10 +373,11 @@ the table."
     (tab-table parsed-loc)))
 
 (defn anytable-spec [spec]
-  (or (validate-map-spec spec)
-      (parse-str-map-spec spec)
-      (parse-location spec)
-      (error "Couldn't build a table representation from "
-             spec ".  Please provide either a map with a :type field of one of "
-             (keys @table-types) 
-             ", or a URL or file name pointing to a tab-delimited file.")))
+  (enhance-spec
+   (or (validate-map-spec spec)
+       (parse-str-map-spec spec)
+       (parse-location spec)
+       (error "Couldn't build a table representation from "
+              spec ".  Please provide either a map with a :type field of one of "
+              (keys @table-types) 
+              ", or a URL or file name pointing to a tab-delimited file."))))

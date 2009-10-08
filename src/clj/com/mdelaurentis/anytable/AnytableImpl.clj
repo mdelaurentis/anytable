@@ -11,6 +11,9 @@
 (defn -init [spec]
   [[] (anytable-spec spec)])
 
+(defn -type [this]
+  (.getName (:type (.state this))))
+
 (defn -headers [this]
   (headers (.state this)))
 

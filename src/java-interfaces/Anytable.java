@@ -20,6 +20,11 @@ public interface Anytable extends Closeable {
   public IPersistentVector headers();
   
   /**
+   * Returns the name of the type of this table.
+   */
+  public String type();
+
+  /**
    * Returns the anytable specification this object was constructed with.
    */
   public IPersistentMap spec();
